@@ -1,16 +1,18 @@
-import { createCliRenderer, TextAttributes } from "@opentui/core";
+import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
+import { App } from "./App";
+import { Database } from "bun:sqlite";
 
-function App() {
-  return (
-    <box alignItems="center" justifyContent="center" flexGrow={1}>
-      <box justifyContent="center" alignItems="flex-end">
-        <ascii-font font="tiny" text="OpenTUI" />
-        <text attributes={TextAttributes.DIM}>What will you build?</text>
-      </box>
-    </box>
-  );
-}
+const DATABASE_PATH = process.env["HOME"] + "/.local/share/tin/data.db";
+export const db_ = new Database(DATABASE_PATH);
 
-const renderer = await createCliRenderer();
-createRoot(renderer).render(<App />);
+const renderer = await createCliRenderer({
+  screenMode: "alternate-screen",
+});
+
+process.on("SIGTERM", () => {
+  renderer.destroy();
+  process.exit(0);
+});
+
+createRoot(renderer).render(<App renderer={renderer} />);
