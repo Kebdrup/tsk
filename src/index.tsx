@@ -1,4 +1,4 @@
-import { createCliRenderer } from "@opentui/core";
+import { ConsolePosition, createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
 import { App } from "./App";
 import { Database } from "bun:sqlite";
@@ -8,6 +8,11 @@ export const db_ = new Database(DATABASE_PATH);
 
 const renderer = await createCliRenderer({
   screenMode: "alternate-screen",
+  consoleMode: "console-overlay",
+  consoleOptions: {
+    position: ConsolePosition.BOTTOM,
+    sizePercent: 30,
+  },
 });
 
 process.on("SIGTERM", () => {

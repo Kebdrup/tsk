@@ -1,25 +1,25 @@
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { forwardRef, type ReactNode } from "react";
+import { colors } from "./globals";
 
 export type TaskListProps = {
   title: string;
+  focused?: boolean;
   children?: ReactNode;
 };
 
 export const TaskList = forwardRef<ScrollBoxRenderable, TaskListProps>(
-  ({ title, children }: TaskListProps, ref) => {
+  ({ title, focused: focused = false, children }: TaskListProps, ref) => {
     return (
       <scrollbox
         ref={ref}
         title={title}
         titleAlignment="center"
         borderStyle="rounded"
+        borderColor={focused ? colors.accent : undefined}
         height={"100%"}
-        flexGrow={1}
-        maxWidth={"25%"}
+        width={"25%"}
         paddingRight={3}
-        paddingTop={1}
-        paddingBottom={1}
       >
         {children}
       </scrollbox>
