@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
 import { db_ } from "./index.js"
+import type { CliRenderer } from "@opentui/core";
+import { tmpdir } from "node:os";
 
 export enum TaskStatus {
   todo = 0,
@@ -7,6 +9,10 @@ export enum TaskStatus {
   blocked = 2,
   done = 3
 }
+
+export type Error = {
+  code: string;
+};
 
 export type Task = {
   id: number
@@ -20,22 +26,10 @@ export type TasksResult = {
   tasks: { [key in (keyof typeof TaskStatus)]: Task[] }
   changeTaskStatus: (task: Task, newStatus: TaskStatus) => void
   swapTasks: (a: Task, b: Task) => void
+  editTask: (task: Task) => void
+  createTask: (title: string, status: TaskStatus, placement: number) => void
+  deleteTask: (task: Task) => void
 }
-
-//
-//   std::string sql = "UPDATE " + TABLE_NAME +
-//                    " SET "
-//                    "title = ?,"
-//                    "content = ?,"
-//                    "status = ?,"
-//                    "placement = ?"
-//                    " WHERE id = ?";
-//  if (!has_database_record_) {
-//    sql = "INSERT INTO " + TABLE_NAME +
-//          " (title, content, status, "
-//          "placement) "
-//          "VALUES (?, ?, ?, ?)";
-//
 
 const getTasks = () => {
   const query = db_.prepare("SELECT id, title, content, status, placement FROM tasks ORDER BY status, placement ASC");
@@ -51,7 +45,7 @@ const getTasks = () => {
   }) as Task[]
 }
 
-export const useTasks = () => {
+export const useTasks = (renderer: CliRenderer) => {
   const [tasks, setTasks] = useState<Task[]>([])
 
   // Make sure the database and tables exists
@@ -93,9 +87,66 @@ export const useTasks = () => {
         UPDATE tasks SET 
           placement = placement + 1
         WHERE status = $status;
-      `).run({ $status: newStatus })
+        `).run({ $status: newStatus })
     })()
     setTasks(getTasks())
+  }
+
+  const editTask = async (task: Task) => {
+    const editor = process.env["EDITOR"] ?? "nvim";
+    renderer.suspend();
+    const filePath = `${tmpdir()}/task-${task.id}.md`;
+    const editedTaskFile = Bun.file(filePath)
+    await editedTaskFile.write(task.content)
+    Bun.spawn([editor, filePath], {
+      stdio: ["inherit", "inherit", "inherit"],
+      onExit: async () => {
+        renderer.resume();
+        try {
+          const editedTaskContent = await editedTaskFile.text();
+          db_.query(`
+            UPDATE tasks SET 
+              content = $content
+            WHERE id = $id;
+          `).run({ $id: task.id, $content: editedTaskContent })
+          await editedTaskFile.delete()
+          setTasks(getTasks)
+        } catch (e) {
+          // Check if not exists error, i.e. user did not save file
+          if ((e as Error).code !== "ENOENT") {
+            throw e;
+          }
+        }
+      },
+    });
+  };
+
+  const createTask = (title: string, status: TaskStatus, placement: number) => {
+    db_.transaction(() => {
+      db_.query(`
+        UPDATE tasks SET 
+          placement = placement + 1
+        WHERE status = $status and placement >= $placement;
+        `).run({ $status: status, $placement: placement })
+      db_.query(`
+          INSERT INTO tasks (title, content, status, placement)
+          VALUES ($title, "", $status, $placement)
+          `).run({ $title: title, $status: status, $placement: placement })
+    })()
+    setTasks(getTasks)
+  }
+
+  const deleteTask = (task: Task) => {
+    db_.query(`
+      DELETE FROM tasks
+      WHERE id = $id
+      `).run({ $id: task.id })
+    db_.query(`
+      UPDATE tasks SET 
+        placement = placement - 1
+      WHERE status = $status and placement >= $placement;
+      `).run({ $status: task.status, $placement: task.placement })
+    setTasks(getTasks)
   }
 
   const result: TasksResult = {
@@ -106,7 +157,10 @@ export const useTasks = () => {
       done: tasks?.filter(task => task.status === TaskStatus.done) ?? [],
     },
     changeTaskStatus: changeTaskStatus,
-    swapTasks: swapTasks
+    swapTasks: swapTasks,
+    editTask: editTask,
+    createTask: createTask,
+    deleteTask: deleteTask
   }
   return result
 }

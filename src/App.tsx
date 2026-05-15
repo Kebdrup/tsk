@@ -1,28 +1,25 @@
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useKeyboard } from "@opentui/react";
 import {
-  TextAttributes,
+  getTreeSitterClient,
   type CliRenderer,
   type ScrollBoxRenderable,
 } from "@opentui/core";
-import { TaskList } from "./TaskList";
-import { TaskItem } from "./TaskItem";
+import { TaskList } from "./components/TaskList";
+import { TaskItem } from "./components/TaskItem";
 import { TaskStatus, useTasks } from "./useTasks";
-
-export const openEditor = async (renderer: CliRenderer, filePath: string) => {
-  const editor = process.env["EDITOR"] ?? "vim";
-  renderer.suspend();
-  Bun.spawn([editor, filePath], {
-    stdio: ["inherit", "inherit", "inherit"],
-    onExit: () => {
-      renderer.resume();
-    },
-  });
-};
+import { markdownStyles } from "./globals";
+import { HelpDialog } from "./components/HelpDialog";
+import { CreateDialog } from "./components/CreateDialog";
 
 export type AppProps = {
   renderer: CliRenderer;
 };
+
+enum AppMode {
+  default = 0,
+  createTask = 1,
+}
 
 type ScrollBoxRef = ScrollBoxRenderable | null;
 
@@ -30,128 +27,189 @@ export const App = ({ renderer }: AppProps) => {
   const scrollBoxes = useRef<
     [ScrollBoxRef, ScrollBoxRef, ScrollBoxRef, ScrollBoxRef]
   >([null, null, null, null]);
+  const [appMode, setAppMode] = useState<AppMode>(AppMode.default);
   const [focusedMenuIndex, setFocusedMenuIndex] = useState(0);
   const [focusedItemIndex, setFocusedItemIndex] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
-  const { tasks, changeTaskStatus, swapTasks } = useTasks();
+  const treeSitterClient = useMemo(() => getTreeSitterClient(), []);
+
+  const {
+    tasks,
+    changeTaskStatus,
+    swapTasks,
+    editTask,
+    createTask,
+    deleteTask,
+  } = useTasks(renderer);
+
+  const markdownStyle = useMemo(() => {
+    return markdownStyles;
+  }, []);
+
+  const { selectedStatus, selectedTasks, selectedTask } = useMemo(() => {
+    const selectedStatusLabel = TaskStatus[focusedMenuIndex as TaskStatus];
+    const selectedTasks = tasks[selectedStatusLabel as keyof typeof tasks];
+    const selectedTask =
+      tasks[selectedStatusLabel as keyof typeof tasks][focusedItemIndex];
+    return {
+      selectedStatus: focusedMenuIndex as TaskStatus,
+      selectedTasks,
+      selectedTask,
+    };
+  }, [focusedMenuIndex, focusedItemIndex, tasks]);
 
   useKeyboard((key) => {
-    const currentStatus = TaskStatus[focusedMenuIndex as TaskStatus];
-    const currentTasks = tasks[currentStatus as keyof typeof tasks];
-    const currentMenuScrollBox = scrollBoxes.current[focusedMenuIndex];
+    console.log("Key pressed:", key);
+    switch (appMode) {
+      case AppMode.createTask:
+        // Close create dialog
+        if (key.name === "q" || key.name === "escape") {
+          setAppMode(AppMode.default);
+          setShowCreate(false);
+        }
+        break;
+      case AppMode.default: {
+        const currentMenuScrollBox = scrollBoxes.current[focusedMenuIndex];
 
-    // Quit
-    if (key.name === "q") {
-      renderer.destroy();
-      process.exit(0);
-    }
-    // Edit task
-    if (key.name === "e") {
-      openEditor(renderer, "/tmp/example.txt");
-    }
-    // Navigate down
-    if (key.name === "j") {
-      if (focusedItemIndex >= currentTasks.length - 1) {
-        return;
-      }
-      if (key.shift) {
-        const nextItemIndex = focusedItemIndex + 1;
-        if (currentTasks[focusedItemIndex] && currentTasks[nextItemIndex]) {
-          swapTasks(
-            currentTasks[focusedItemIndex],
-            currentTasks[nextItemIndex],
-          );
+        // Quit
+        if (key.name === "q") {
+          renderer.destroy();
+          process.exit(0);
         }
-      }
-      const nextTask = currentTasks[focusedItemIndex + 1];
-      if (currentMenuScrollBox != null && nextTask !== undefined) {
-        setFocusedItemIndex((prev) => prev + 1);
-        currentMenuScrollBox.scrollChildIntoView(String(nextTask.id));
-      }
-    }
-    // Navigate up
-    if (key.name === "k") {
-      if (focusedItemIndex === 0) {
-        return;
-      }
-      if (key.shift) {
-        const prevItemIndex = focusedItemIndex - 1;
-        if (currentTasks[focusedItemIndex] && currentTasks[prevItemIndex]) {
-          swapTasks(
-            currentTasks[focusedItemIndex],
-            currentTasks[prevItemIndex],
-          );
+        // Edit task
+        if (key.name === "e" || key.name === "return") {
+          if (selectedTask !== undefined) {
+            editTask(selectedTask);
+          }
         }
-      }
-      const nextTask = currentTasks[focusedItemIndex - 1];
-      if (currentMenuScrollBox != null && nextTask !== undefined) {
-        setFocusedItemIndex((prev) => prev - 1);
-        currentMenuScrollBox.scrollChildIntoView(String(nextTask.id));
-      }
-    }
-    // Navigate left
-    if (key.name === "h" || key.name === "left") {
-      if (focusedMenuIndex === 0) {
-        return;
-      }
-      if (key.shift) {
-        if (currentTasks[focusedItemIndex]) {
-          changeTaskStatus(
-            currentTasks[focusedItemIndex],
-            (focusedMenuIndex - 1) as TaskStatus,
-          );
+        // Navigate down
+        if (key.name === "j") {
+          if (focusedItemIndex >= selectedTasks.length - 1) {
+            return;
+          }
+          if (key.shift) {
+            const nextItemIndex = focusedItemIndex + 1;
+            if (
+              selectedTasks[focusedItemIndex] &&
+              selectedTasks[nextItemIndex]
+            ) {
+              swapTasks(
+                selectedTasks[focusedItemIndex],
+                selectedTasks[nextItemIndex],
+              );
+            }
+          }
+          const nextTask = selectedTasks[focusedItemIndex + 1];
+          if (currentMenuScrollBox != null && nextTask !== undefined) {
+            setFocusedItemIndex((prev) => prev + 1);
+            currentMenuScrollBox.scrollChildIntoView(String(nextTask.id));
+          }
         }
-      }
-      setFocusedMenuIndex((prev) => prev - 1);
-      setFocusedItemIndex(0);
-      const nextMenuScrollBox = scrollBoxes.current[focusedMenuIndex - 1];
-      nextMenuScrollBox?.scrollTo(0);
-    }
-    // Navigate right
-    if (key.name === "l" || key.name === "right") {
-      if (focusedMenuIndex === 3) {
-        return;
-      }
-      if (key.shift) {
-        if (currentTasks[focusedItemIndex] && focusedMenuIndex < 3) {
-          changeTaskStatus(
-            currentTasks[focusedItemIndex],
-            (focusedMenuIndex + 1) as TaskStatus,
-          );
+        // Navigate up
+        if (key.name === "k") {
+          if (focusedItemIndex === 0) {
+            return;
+          }
+          if (key.shift) {
+            const prevItemIndex = focusedItemIndex - 1;
+            if (
+              selectedTasks[focusedItemIndex] &&
+              selectedTasks[prevItemIndex]
+            ) {
+              swapTasks(
+                selectedTasks[focusedItemIndex],
+                selectedTasks[prevItemIndex],
+              );
+            }
+          }
+          const nextTask = selectedTasks[focusedItemIndex - 1];
+          if (currentMenuScrollBox != null && nextTask !== undefined) {
+            setFocusedItemIndex((prev) => prev - 1);
+            currentMenuScrollBox.scrollChildIntoView(String(nextTask.id));
+          }
         }
+        // Navigate left
+        if (key.name === "h" || key.name === "left") {
+          if (focusedMenuIndex === 0) {
+            return;
+          }
+          if (key.shift) {
+            if (selectedTasks[focusedItemIndex]) {
+              changeTaskStatus(
+                selectedTasks[focusedItemIndex],
+                (focusedMenuIndex - 1) as TaskStatus,
+              );
+            }
+          }
+          setFocusedMenuIndex((prev) => prev - 1);
+          setFocusedItemIndex(0);
+          const nextMenuScrollBox = scrollBoxes.current[focusedMenuIndex - 1];
+          nextMenuScrollBox?.scrollTo(0);
+        }
+        // Navigate right
+        if (key.name === "l" || key.name === "right") {
+          if (focusedMenuIndex === 3) {
+            return;
+          }
+          if (key.shift) {
+            if (selectedTasks[focusedItemIndex] && focusedMenuIndex < 3) {
+              changeTaskStatus(
+                selectedTasks[focusedItemIndex],
+                (focusedMenuIndex + 1) as TaskStatus,
+              );
+            }
+          }
+          setFocusedMenuIndex((prev) => prev + 1);
+          setFocusedItemIndex(0);
+          const nextMenuScrollBox = scrollBoxes.current[focusedMenuIndex + 1];
+          nextMenuScrollBox?.scrollTo(0);
+        }
+        if (key.name === "a") {
+          setAppMode(AppMode.createTask);
+          setShowCreate(true);
+        }
+        if (key.name === "x" || key.name === "d") {
+          if (selectedTask !== undefined) {
+            deleteTask(selectedTask);
+            if (focusedItemIndex === selectedTasks.length - 1) {
+              setFocusedItemIndex((prev) => Math.max(prev - 1, 0));
+            }
+          }
+        }
+        // Show help
+        if (key.name === "?") {
+          setShowHelp((prev) => !prev);
+        }
+        if (key.name === "c") {
+          renderer.console.toggle();
+        }
+        break;
       }
-      setFocusedMenuIndex((prev) => prev + 1);
-      setFocusedItemIndex(0);
-      const nextMenuScrollBox = scrollBoxes.current[focusedMenuIndex + 1];
-      nextMenuScrollBox?.scrollTo(0);
-    }
-    // Show help
-    if (key.name === "?") {
-      setShowHelp((prev) => !prev);
-    }
-    if (key.name === "c") {
-      renderer.console.toggle();
     }
   });
+
+  const createTaskFromTitle = useCallback(
+    (title: string) => {
+      createTask(title, selectedStatus, focusedItemIndex);
+      setShowCreate(false);
+      setAppMode(AppMode.default);
+    },
+    [selectedStatus, focusedItemIndex],
+  );
 
   const taskItemWidth = useMemo(() => renderer.width / 4 - 6, []);
 
   return (
     <box flexGrow={1}>
-      <box
-        visible={showHelp}
-        position="absolute"
-        top={"25%"}
-        left={"30%"}
-        width={"40%"}
-        height={"50%"}
-        borderStyle="rounded"
-        backgroundColor="black"
-        zIndex={10}
-      >
-        <text>Hello</text>
-      </box>
+      <HelpDialog show={showHelp} />
+      {showCreate && (
+        <CreateDialog
+          status={selectedStatus}
+          createTask={createTaskFromTitle}
+        />
+      )}
       <box flexDirection="row" height="30%">
         <TaskList
           ref={(ref) => {
@@ -222,8 +280,14 @@ export const App = ({ renderer }: AppProps) => {
           ))}
         </TaskList>
       </box>
-      <box borderStyle="rounded" flexGrow={1}>
-        <text attributes={TextAttributes.DIM}>What the will you build?</text>
+      <box borderStyle="rounded" flexGrow={1} paddingLeft={1} paddingRight={1}>
+        {selectedTask !== undefined && (
+          <markdown
+            treeSitterClient={treeSitterClient}
+            syntaxStyle={markdownStyle}
+            content={selectedTask?.content}
+          />
+        )}
       </box>
     </box>
   );

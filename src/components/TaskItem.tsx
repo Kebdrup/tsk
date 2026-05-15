@@ -1,5 +1,5 @@
 import { TextAttributes } from "@opentui/core";
-import { colors } from "./globals";
+import { colors } from "../globals";
 
 export type TaskItemProps = {
   title: string;

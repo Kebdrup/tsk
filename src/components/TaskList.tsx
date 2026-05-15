@@ -1,6 +1,6 @@
 import type { ScrollBoxRenderable } from "@opentui/core";
 import { forwardRef, type ReactNode } from "react";
-import { colors } from "./globals";
+import { colors } from "../globals";
 
 export type TaskListProps = {
   title: string;
@@ -16,7 +16,7 @@ export const TaskList = forwardRef<ScrollBoxRenderable, TaskListProps>(
         title={title}
         titleAlignment="center"
         borderStyle="rounded"
-        borderColor={focused ? colors.accent : undefined}
+        borderColor={focused ? colors.accentPrimary : undefined}
         height={"100%"}
         width={"25%"}
         paddingRight={3}
