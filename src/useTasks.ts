@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { db_ } from "./index.js"
 import type { CliRenderer } from "@opentui/core";
 import { tmpdir } from "node:os";
+import { db_ } from "./database";
 
 export enum TaskStatus {
   todo = 0,
@@ -50,7 +50,7 @@ export const useTasks = (renderer: CliRenderer) => {
 
   // Make sure the database and tables exists
   useEffect(() => {
-    db_.exec(`
+    db_.query(`
 			CREATE TABLE IF NOT EXISTS tasks (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
 				title TEXT NOT NULL,
@@ -58,7 +58,7 @@ export const useTasks = (renderer: CliRenderer) => {
 				status INTEGER DEFAULT 0,
 				placement INTEGER DEFAULT 0
 			);`
-    )
+    ).run()
     setTasks(getTasks())
   }, [])
 
@@ -79,15 +79,15 @@ export const useTasks = (renderer: CliRenderer) => {
     db_.transaction(() => {
       db_.query(`
         UPDATE tasks SET 
+          placement = placement + 1
+        WHERE status = $status;
+        `).run({ $status: newStatus })
+      db_.query(`
+        UPDATE tasks SET 
           status = $status,
           placement = $placement
         WHERE id = $id;
         `).run({ $status: newStatus, $placement: 0, $id: task.id })
-      db_.query(`
-        UPDATE tasks SET 
-          placement = placement + 1
-        WHERE status = $status;
-        `).run({ $status: newStatus })
     })()
     setTasks(getTasks())
   }
@@ -133,7 +133,7 @@ export const useTasks = (renderer: CliRenderer) => {
           VALUES ($title, "", $status, $placement)
           `).run({ $title: title, $status: status, $placement: placement })
     })()
-    setTasks(getTasks)
+    setTasks(getTasks())
   }
 
   const deleteTask = (task: Task) => {
@@ -146,7 +146,7 @@ export const useTasks = (renderer: CliRenderer) => {
         placement = placement - 1
       WHERE status = $status and placement >= $placement;
       `).run({ $status: task.status, $placement: task.placement })
-    setTasks(getTasks)
+    setTasks(getTasks())
   }
 
   const result: TasksResult = {

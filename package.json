@@ -7,7 +7,12 @@
     "dev": "bun run --watch --retry src/index.tsx"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@happy-dom/global-registrator": "^20.9.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/bun": "latest",
+    "react-dom": "19.2.6"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -15,7 +20,7 @@
   "dependencies": {
     "@opentui/core": "^0.1.99",
     "@opentui/react": "^0.1.99",
-    "react": "^19.2.4",
-    "web-tree-sitter": "0.25.10" 
+    "react": "19.2.6",
+    "web-tree-sitter": "0.25.10"
   }
 }
