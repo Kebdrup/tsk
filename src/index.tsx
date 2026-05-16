@@ -17,3 +17,4 @@ process.on("SIGTERM", () => {
 });
 
 createRoot(renderer).render(<App renderer={renderer} />);
+renderer.start();
