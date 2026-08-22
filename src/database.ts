@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-export const DATABASE_PATH = process.env["HOME"] + "/.local/share/tin/data.db";
+export const DATABASE_PATH = process.env["HOME"] + "/.local/share/tsk/data.db";
 mkdirSync(dirname(DATABASE_PATH), { recursive: true });
 export const db_ = new Database(DATABASE_PATH);
 
