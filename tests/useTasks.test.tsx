@@ -21,7 +21,6 @@ describe("useTasks", () => {
     const result = await createTestRenderer({
       width: 120,
       height: 50,
-      testing: true,
     });
 
     renderer = result.renderer;

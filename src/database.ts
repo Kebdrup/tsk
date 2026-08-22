@@ -13,8 +13,15 @@ CREATE TABLE IF NOT EXISTS tasks (
   content TEXT,
   status INTEGER DEFAULT 0,
   placement INTEGER DEFAULT 0,
-  deleted BOOLEAN DEFAUL FALSE
-);`
+  deleted BOOLEAN DEFAUL FALSE,
+  project INTEGER DEFAULT 0,
+  FOREIGN KEY(project) REFERENCES projects(id)
+);
+CREATE TABLE IF NOT EXISTS projects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  label TEXT NOT NULL
+);
+`
 
 export const SELECT_TASKS_SQL = `
 SELECT id, title, content, status, placement
