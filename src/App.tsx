@@ -8,9 +8,10 @@ import {
 import { TaskList } from "./components/TaskList";
 import { TaskItem } from "./components/TaskItem";
 import { TaskStatus, useTasks } from "./useTasks";
-import { markdownStyles } from "./globals";
+import { colors, markdownStyles } from "./globals";
 import { HelpDialog } from "./components/HelpDialog";
 import { CreateDialog } from "./components/CreateDialog";
+import { ConfirmDialog } from "./components/ConfirmDialog";
 
 export type AppProps = {
   renderer: CliRenderer;
@@ -32,6 +33,7 @@ export const App = ({ renderer }: AppProps) => {
   const [focusedItemIndex, setFocusedItemIndex] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
   const treeSitterClient = useMemo(() => getTreeSitterClient(), []);
 
@@ -172,10 +174,7 @@ export const App = ({ renderer }: AppProps) => {
         }
         if (key.name === "x" || key.name === "d") {
           if (selectedTask !== undefined) {
-            deleteTask(selectedTask);
-            if (focusedItemIndex === selectedTasks.length - 1) {
-              setFocusedItemIndex((prev) => Math.max(prev - 1, 0));
-            }
+            setShowDelete(true);
           }
         }
         // Show help
@@ -204,6 +203,30 @@ export const App = ({ renderer }: AppProps) => {
   return (
     <box flexGrow={1}>
       <HelpDialog show={showHelp} />
+      {showDelete && (
+        <ConfirmDialog
+          content={
+            <box>
+              <text>
+                DELETE:{" "}
+                <span fg={colors.accentPrimary}>{selectedTask?.title}</span>
+              </text>
+            </box>
+          }
+          onAccept={() => {
+            if (selectedTask !== undefined) {
+              deleteTask(selectedTask);
+              if (focusedItemIndex === selectedTasks.length - 1) {
+                setFocusedItemIndex((prev) => Math.max(prev - 1, 0));
+              }
+              setShowDelete(false);
+            }
+          }}
+          onDeny={() => {
+            setShowDelete(false);
+          }}
+        />
+      )}
       {showCreate && (
         <CreateDialog
           status={selectedStatus}

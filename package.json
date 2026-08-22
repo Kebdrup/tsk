@@ -6,23 +6,25 @@
   "scripts": {
     "dev": "bun run --watch --retry src/index.tsx",
     "build:cli": "bun build src/index.tsx --target bun --outdir dist --banner '#!/usr/bin/env bun'",
-    "install:cli": "chmod +x dist/index.js && ln -s $(pwd)/dist/index.js /usr/local/bin/tsk",
+    "install:cli": "chmod +x dist/index.js && ln -s $(pwd)/dist/index.js /usr/local/bin/tsk"
   },
   "devDependencies": {
-    "@happy-dom/global-registrator": "^20.9.0",
+    "@happy-dom/global-registrator": "^20.11.6",
     "@testing-library/dom": "^10.4.1",
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^6.10.0",
     "@testing-library/react": "^16.3.2",
     "@types/bun": "latest",
     "react-dom": "19.2.6"
   },
   "peerDependencies": {
-    "typescript": "^5"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@opentui/core": "^0.1.99",
-    "@opentui/react": "^0.1.99",
+    "@opentui/core": "^0.1.107",
+    "@opentui/react": "^0.1.107",
+    "@types/react": "^19.2.18",
     "react": "19.2.6",
-    "web-tree-sitter": "0.25.10"
+    "web-tree-sitter": "0.25.10",
+    "zustand": "^5.0.15"
   }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import type { CliRenderer } from "@opentui/core";
 import { tmpdir } from "node:os";
-import { db_ } from "./database";
+import { CREATE_DATABASE_SQL, CREATE_TASK_SQL, db_, DECREMENT_TASK_PLACEMENT_SQL, DELETE_TASK_SQL, INCREMENT_TASK_PLACEMENT_SQL, SELECT_TASKS_SQL, UPDATE_TASK_CONTENT_SQL, UPDATE_TASK_PLACEMENT_SQL, UPDATE_TASK_STATUS_PLACEMENT_SQL } from "./database";
 
 export enum TaskStatus {
   todo = 0,
@@ -32,7 +32,7 @@ export type TasksResult = {
 }
 
 const getTasks = () => {
-  const query = db_.prepare("SELECT id, title, content, status, placement FROM tasks ORDER BY status, placement ASC");
+  const query = db_.prepare(SELECT_TASKS_SQL);
   return query.all().map(record => {
     const task = record as Task
     return ({
@@ -50,24 +50,12 @@ export const useTasks = (renderer: CliRenderer) => {
 
   // Make sure the database and tables exists
   useEffect(() => {
-    db_.query(`
-			CREATE TABLE IF NOT EXISTS tasks (
-				id INTEGER PRIMARY KEY AUTOINCREMENT,
-				title TEXT NOT NULL,
-				content TEXT,
-				status INTEGER DEFAULT 0,
-				placement INTEGER DEFAULT 0
-			);`
-    ).run()
+    db_.query(CREATE_DATABASE_SQL).run()
     setTasks(getTasks())
   }, [])
 
   const swapTasks = (a: Task, b: Task) => {
-    const updatePlacement = db_.query(`
-      UPDATE tasks SET 
-        placement = $placement
-      WHERE id = $id;
-    `)
+    const updatePlacement = db_.query(UPDATE_TASK_PLACEMENT_SQL)
     db_.transaction(() => {
       updatePlacement.run({ $id: a.id, $placement: b.placement })
       updatePlacement.run({ $id: b.id, $placement: a.placement })
@@ -77,17 +65,10 @@ export const useTasks = (renderer: CliRenderer) => {
 
   const changeTaskStatus = (task: Task, newStatus: TaskStatus) => {
     db_.transaction(() => {
-      db_.query(`
-        UPDATE tasks SET 
-          placement = placement + 1
-        WHERE status = $status;
-        `).run({ $status: newStatus })
-      db_.query(`
-        UPDATE tasks SET 
-          status = $status,
-          placement = $placement
-        WHERE id = $id;
-        `).run({ $status: newStatus, $placement: 0, $id: task.id })
+      db_.query(UPDATE_TASK_PLACEMENT_SQL).
+        run({ $status: newStatus })
+      db_.query(UPDATE_TASK_STATUS_PLACEMENT_SQL).
+        run({ $status: newStatus, $placement: 0, $id: task.id })
     })()
     setTasks(getTasks())
   }
@@ -98,17 +79,16 @@ export const useTasks = (renderer: CliRenderer) => {
     const filePath = `${tmpdir()}/task-${task.id}.md`;
     const editedTaskFile = Bun.file(filePath)
     await editedTaskFile.write(task.content)
+    // Spawn the editor as a new subprocess
+    // Resume current renderer on exit
     Bun.spawn([editor, filePath], {
       stdio: ["inherit", "inherit", "inherit"],
       onExit: async () => {
         renderer.resume();
         try {
           const editedTaskContent = await editedTaskFile.text();
-          db_.query(`
-            UPDATE tasks SET 
-              content = $content
-            WHERE id = $id;
-          `).run({ $id: task.id, $content: editedTaskContent })
+          db_.query(UPDATE_TASK_CONTENT_SQL).
+            run({ $id: task.id, $content: editedTaskContent })
           await editedTaskFile.delete()
           setTasks(getTasks)
         } catch (e) {
@@ -123,29 +103,18 @@ export const useTasks = (renderer: CliRenderer) => {
 
   const createTask = (title: string, status: TaskStatus, placement: number) => {
     db_.transaction(() => {
-      db_.query(`
-        UPDATE tasks SET 
-          placement = placement + 1
-        WHERE status = $status and placement >= $placement;
-        `).run({ $status: status, $placement: placement })
-      db_.query(`
-          INSERT INTO tasks (title, content, status, placement)
-          VALUES ($title, "", $status, $placement)
-          `).run({ $title: title, $status: status, $placement: placement })
+      db_.query(INCREMENT_TASK_PLACEMENT_SQL).
+        run({ $status: status, $placement: placement })
+      db_.query(CREATE_TASK_SQL).
+        run({ $title: title, $status: status, $placement: placement })
     })()
     setTasks(getTasks())
   }
 
   const deleteTask = (task: Task) => {
-    db_.query(`
-      DELETE FROM tasks
-      WHERE id = $id
-      `).run({ $id: task.id })
-    db_.query(`
-      UPDATE tasks SET 
-        placement = placement - 1
-      WHERE status = $status and placement >= $placement;
-      `).run({ $status: task.status, $placement: task.placement })
+    db_.query(DELETE_TASK_SQL).run({ $id: task.id })
+    db_.query(DECREMENT_TASK_PLACEMENT_SQL).
+      run({ $status: task.status, $placement: task.placement })
     setTasks(getTasks())
   }
 
