@@ -78,7 +78,6 @@ export const App = ({ renderer }: AppProps) => {
         // Quit
         if (key.name === "q") {
           renderer.destroy();
-          process.exit(0);
         }
         // Edit task
         if (key.name === "e" || key.name === "return") {

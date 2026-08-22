@@ -11,10 +11,6 @@ const renderer = await createCliRenderer({
   },
 });
 
-process.on("SIGTERM", () => {
-  renderer.destroy();
-  process.exit(0);
-});
-
-createRoot(renderer).render(<App renderer={renderer} />);
+const root = createRoot(renderer);
+root.render(<App renderer={renderer} />);
 renderer.start();

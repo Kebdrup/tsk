@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "bun run --watch --retry src/index.tsx",
-    "build:cli": "bun build src/index.tsx --target bun --outdir dist --banner '#!/usr/bin/env bun'",
+    "build:cli": "bun build src/index.tsx --target bun --outdir dist --external '@opentui/core-*' --banner '#!/usr/bin/env bun'",
     "install:cli": "chmod +x dist/index.js && ln -s $(pwd)/dist/index.js /usr/local/bin/tsk"
   },
   "devDependencies": {
@@ -20,8 +20,9 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@opentui/core": "^0.1.107",
-    "@opentui/react": "^0.1.107",
+    "@opentui/core": "^0.5.6",
+    "@opentui/core-linux-x64": "^0.5.6",
+    "@opentui/react": "^0.5.6",
     "@types/react": "^19.2.18",
     "react": "19.2.6",
     "web-tree-sitter": "0.25.10",
