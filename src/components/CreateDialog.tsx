@@ -1,6 +1,6 @@
-import { TaskStatus } from "../useTasks";
 import { colors } from "../globals";
 import { useState } from "react";
+import { TaskStatus } from "../store/taskStore";
 
 export type CreateDialogProps = {
   status: TaskStatus;

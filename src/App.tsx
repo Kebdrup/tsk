@@ -7,11 +7,11 @@ import {
 } from "@opentui/core";
 import { TaskList } from "./components/TaskList";
 import { TaskItem } from "./components/TaskItem";
-import { TaskStatus, useTasks } from "./useTasks";
 import { colors, markdownStyles } from "./globals";
 import { HelpDialog } from "./components/HelpDialog";
 import { CreateDialog } from "./components/CreateDialog";
 import { ConfirmDialog } from "./components/ConfirmDialog";
+import { TaskStatus, useTaskStore } from "./store/taskStore";
 
 export type AppProps = {
   renderer: CliRenderer;
@@ -44,7 +44,7 @@ export const App = ({ renderer }: AppProps) => {
     editTask,
     createTask,
     deleteTask,
-  } = useTasks(renderer);
+  } = useTaskStore();
 
   const markdownStyle = useMemo(() => {
     return markdownStyles;

@@ -1,6 +1,5 @@
-import { TaskStatus } from "../useTasks";
+import type { ReactNode } from "react";
 import { colors } from "../globals";
-import { useState, type ReactNode } from "react";
 import { useKeyboard } from "@opentui/react";
 
 export type ConfirmDialogProps = {
