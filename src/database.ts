@@ -1,9 +1,6 @@
 import { Database } from "bun:sqlite";
-import { mkdirSync } from "node:fs";
-import { dirname } from "node:path";
 
-export const DATABASE_PATH = process.env["HOME"] + "/.local/share/tsk/data.db";
-mkdirSync(dirname(DATABASE_PATH), { recursive: true });
+export const DATABASE_PATH = process.cwd() + "/.tsk.db";
 export const db_ = new Database(DATABASE_PATH);
 
 export const CREATE_DATABASE_SQL = `
@@ -17,11 +14,9 @@ CREATE TABLE IF NOT EXISTS tasks (
   project INTEGER DEFAULT 0,
   FOREIGN KEY(project) REFERENCES projects(id)
 );
-CREATE TABLE IF NOT EXISTS projects (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  label TEXT NOT NULL
-);
 `
+
+db_.run(CREATE_DATABASE_SQL);
 
 export const SELECT_TASKS_SQL = `
 SELECT id, title, content, status, placement
@@ -32,6 +27,11 @@ ORDER BY status, placement ASC`
 export const UPDATE_TASK_PLACEMENT_SQL = `
 UPDATE tasks SET 
   placement = $placement
+WHERE id = $id;`
+
+export const UPDATE_TASK_TITLE_SQL = `
+UPDATE tasks SET 
+  title = $title
 WHERE id = $id;`
 
 export const UPDATE_TASK_STATUS_PLACEMENT_SQL = `

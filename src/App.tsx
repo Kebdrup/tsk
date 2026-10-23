@@ -9,7 +9,7 @@ import { TaskList } from "./components/TaskList";
 import { TaskItem } from "./components/TaskItem";
 import { colors, markdownStyles } from "./globals";
 import { HelpDialog } from "./components/HelpDialog";
-import { CreateDialog } from "./components/CreateDialog";
+import { CreateOrEditDialog } from "./components/CreateDialog";
 import { ConfirmDialog } from "./components/ConfirmDialog";
 import { TaskStatus, useTaskStore } from "./store/taskStore";
 
@@ -32,7 +32,10 @@ export const App = ({ renderer }: AppProps) => {
   const [focusedMenuIndex, setFocusedMenuIndex] = useState(0);
   const [focusedItemIndex, setFocusedItemIndex] = useState(0);
   const [showHelp, setShowHelp] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState<{
+    show: boolean;
+    edit?: boolean;
+  }>({ show: false });
   const [showDelete, setShowDelete] = useState(false);
 
   const treeSitterClient = useMemo(() => getTreeSitterClient(), []);
@@ -42,6 +45,7 @@ export const App = ({ renderer }: AppProps) => {
     changeTaskStatus,
     swapTasks,
     editTask,
+    changeTaskTitle,
     createTask,
     deleteTask,
   } = useTaskStore();
@@ -69,7 +73,7 @@ export const App = ({ renderer }: AppProps) => {
         // Close create dialog
         if (key.name === "q" || key.name === "escape") {
           setAppMode(AppMode.default);
-          setShowCreate(false);
+          setShowCreate({ show: false });
         }
         break;
       case AppMode.default: {
@@ -79,10 +83,17 @@ export const App = ({ renderer }: AppProps) => {
         if (key.name === "q") {
           renderer.destroy();
         }
-        // Edit task
-        if (key.name === "e" || key.name === "return") {
+        // Edit task content
+        if (key.name === "return") {
           if (selectedTask !== undefined) {
             editTask(selectedTask);
+          }
+        }
+        // Edit task title
+        if (key.name === "e" || key.name === "i") {
+          if (selectedTask !== undefined) {
+            setAppMode(AppMode.createTask);
+            setShowCreate({ show: true, edit: true });
           }
         }
         // Navigate down
@@ -169,7 +180,7 @@ export const App = ({ renderer }: AppProps) => {
         }
         if (key.name === "a") {
           setAppMode(AppMode.createTask);
-          setShowCreate(true);
+          setShowCreate({ show: true, edit: false });
         }
         if (key.name === "x" || key.name === "d") {
           if (selectedTask !== undefined) {
@@ -191,10 +202,21 @@ export const App = ({ renderer }: AppProps) => {
   const createTaskFromTitle = useCallback(
     (title: string) => {
       createTask(title, selectedStatus, focusedItemIndex);
-      setShowCreate(false);
+      setShowCreate({ show: false });
       setAppMode(AppMode.default);
     },
     [selectedStatus, focusedItemIndex],
+  );
+
+  const editTaskFromTitle = useCallback(
+    (title: string) => {
+      if (selectedTask) {
+        changeTaskTitle(selectedTask, title);
+      }
+      setShowCreate({ show: false });
+      setAppMode(AppMode.default);
+    },
+    [selectedStatus, focusedItemIndex, selectedTask],
   );
 
   const taskItemWidth = useMemo(() => renderer.width / 4 - 6, []);
@@ -226,10 +248,11 @@ export const App = ({ renderer }: AppProps) => {
           }}
         />
       )}
-      {showCreate && (
-        <CreateDialog
+      {showCreate.show && (
+        <CreateOrEditDialog
           status={selectedStatus}
-          createTask={createTaskFromTitle}
+          createTask={showCreate.edit ? editTaskFromTitle : createTaskFromTitle}
+          currentTitle={showCreate.edit ? selectedTask?.title : undefined}
         />
       )}
       <box flexDirection="row" height="30%">

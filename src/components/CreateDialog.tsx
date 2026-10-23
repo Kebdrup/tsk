@@ -2,13 +2,18 @@ import { colors } from "../globals";
 import { useState } from "react";
 import { TaskStatus } from "../store/taskStore";
 
-export type CreateDialogProps = {
+export type CreateOrEditDialogProps = {
   status: TaskStatus;
   createTask: (title: string) => void;
+  currentTitle?: string;
 };
 
-export const CreateDialog = ({ status, createTask }: CreateDialogProps) => {
-  const [title, setTitle] = useState<string | null>(null);
+export const CreateOrEditDialog = ({
+  status,
+  createTask,
+  currentTitle,
+}: CreateOrEditDialogProps) => {
+  const [title, setTitle] = useState<string | undefined>(currentTitle ?? "");
   return (
     <box
       position="absolute"
@@ -27,13 +32,16 @@ export const CreateDialog = ({ status, createTask }: CreateDialogProps) => {
       <text marginLeft={1}>Title:</text>
       <box borderStyle="rounded" height={3} marginLeft={1} marginRight={1}>
         <input
+          value={"" + title}
           focused
           onInput={(value) => {
-            setTitle(value.length > 0 ? value : null);
+            if (value !== undefined) {
+              setTitle(value.length > 0 ? value : "");
+            }
           }}
           onKeyDown={(key) => {
             if (key.name === "return") {
-              if (title !== null) {
+              if (title !== undefined && title.length > 0) {
                 createTask(title);
               }
             }

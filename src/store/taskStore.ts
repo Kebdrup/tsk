@@ -1,19 +1,13 @@
 import { create } from "zustand"
 import { CliRenderer } from "@opentui/core";
 import { tmpdir } from "node:os";
-import { CREATE_DATABASE_SQL, CREATE_TASK_SQL, db_, DECREMENT_TASK_PLACEMENT_SQL, DELETE_TASK_SQL, INCREMENT_TASK_PLACEMENT_SQL, SELECT_TASKS_SQL, UPDATE_TASK_CONTENT_SQL, UPDATE_TASK_PLACEMENT_SQL, UPDATE_TASK_STATUS_PLACEMENT_SQL } from "../database";
+import { CREATE_DATABASE_SQL, CREATE_TASK_SQL, db_, DECREMENT_TASK_PLACEMENT_SQL, DELETE_TASK_SQL, INCREMENT_TASK_PLACEMENT_SQL, SELECT_TASKS_SQL, UPDATE_TASK_CONTENT_SQL, UPDATE_TASK_PLACEMENT_SQL, UPDATE_TASK_STATUS_PLACEMENT_SQL, UPDATE_TASK_TITLE_SQL } from "../database";
 
 
-export interface TaskStore {
+export type TaskStore = {
   renderer: CliRenderer | null,
   initialize: (renderer: CliRenderer) => void
-  tasks: { [key in (keyof typeof TaskStatus)]: Task[] }
-  changeTaskStatus: (task: Task, newStatus: TaskStatus) => void
-  swapTasks: (a: Task, b: Task) => void
-  editTask: (task: Task) => void
-  createTask: (title: string, status: TaskStatus, placement: number) => void
-  deleteTask: (task: Task) => void
-}
+} & TasksResult
 
 
 export enum TaskStatus {
@@ -40,6 +34,7 @@ export type TasksResult = {
   changeTaskStatus: (task: Task, newStatus: TaskStatus) => void
   swapTasks: (a: Task, b: Task) => void
   editTask: (task: Task) => void
+  changeTaskTitle: (task: Task, newTitle: string) => void
   createTask: (title: string, status: TaskStatus, placement: number) => void
   deleteTask: (task: Task) => void
 }
@@ -70,7 +65,7 @@ const tasksByStatus = (tasks: Task[]) => {
 export const useTaskStore = create<TaskStore>()((set, get) => ({
   renderer: null,
   initialize: (renderer: CliRenderer) => {
-    db_.query(CREATE_DATABASE_SQL).run()
+    console.log("Database init")
     set(() => ({ renderer }))
   },
   tasks: (() =>
@@ -123,6 +118,13 @@ export const useTaskStore = create<TaskStore>()((set, get) => ({
         }
       },
     });
+  },
+  changeTaskTitle: (task: Task, newTitle: string) => {
+    db_.transaction(() => {
+      db_.query(UPDATE_TASK_TITLE_SQL).
+        run({ $id: task.id, $title: newTitle })
+    })()
+    set(() => ({ tasks: tasksByStatus(getTasks()) }))
   },
   createTask: (title: string, status: TaskStatus, placement: number) => {
     db_.transaction(() => {

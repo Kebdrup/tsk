@@ -18,6 +18,7 @@ export const ConfirmDialog = ({
       case "y":
         onAccept();
         break;
+      case "escape":
       case "n":
         onDeny();
         break;
